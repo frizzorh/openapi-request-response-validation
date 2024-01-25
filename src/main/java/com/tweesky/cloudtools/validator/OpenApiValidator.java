@@ -10,6 +10,8 @@ import com.tweesky.cloudtools.dto.ResponseData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URL;
 import java.util.stream.Collectors;
 
 public class OpenApiValidator {
@@ -26,6 +28,14 @@ public class OpenApiValidator {
         this.validator = OpenApiInteractionValidator.createForInlineApiSpecification(schema)
                 .build();
     }
+    public OpenApiValidator(URL url) {
+
+        if(url == null) {
+            throw new RuntimeException("OpenAPI schema URL is undefined");
+        }
+        this.validator = OpenApiInteractionValidator.createForSpecificationUrl(url.toString())
+                .build();
+    }
 
     public ResponseData validate(OpenApiValidatorObject validatorObject) {
 
@@ -36,8 +46,8 @@ public class OpenApiValidator {
         }
         if(validatorObject.getHeaders() != null) {
             for(var header : validatorObject.getHeaders()) {
-                String key = header.get("key");
-                String value = header.get("value");
+                String key = header.getKey();
+                String value = header.getValue();
                 requestBuilder.withHeader(key, value);
             }
         }
@@ -50,7 +60,12 @@ public class OpenApiValidator {
             responseBuilder.withContentType(validatorObject.getResponseContentType());
         }
 
-        var validationReport = validator.validate(requestBuilder.build(), responseBuilder.build());
+        ValidationReport validationReport;
+        if (validatorObject.getStatus() != 0) {
+            validationReport = validator.validate(requestBuilder.build(), responseBuilder.build());
+        } else {
+            validationReport = validator.validateRequest(requestBuilder.build());
+        }
 
         var responseData = new ResponseData();
 

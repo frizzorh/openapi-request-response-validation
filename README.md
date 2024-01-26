@@ -1,132 +1,49 @@
 # OpenAPI validator
 
-This tool allows the validation at runtime of the API requests responses according to the OpenAPI specs.  
+
+> **WARNING:**
+This is just an experimental project developed for a demo! It's currently under development and lack in testing and functionalities. Anyone are welcome to improve it or propose new features 
+## Intro
+
+This tool allows the validation at runtime of the API requests responses according to the OpenAPI specs through an HTTP Proxy.  
 
 There are several tools that can validate an OpenAPI specification, but there are no many options to ensure that the API contracts are honoured by the API we are developing.
 
 This tool make sure that the API requests and responses are valid according to the OpenAPI specification of the API.
 
-More on [Validating API requests and responses](https://medium.com/geekculture/validating-api-requests-and-responses-25ed5cc9e846)
-
-The `openapi-request-response-validator` is a SpringBoot (Java) application implementing a REST controller to allow Postman scripts (or other clients) to send the payload to be validated. The OpenAPI file can be supplied at startup.
+The `openapi-request-response-validator` is a SpringBoot and Camel(Java) application implementing an HTTP Proxy for transparent validation of Request/Response against OpenAPI specification. The OpenAPI specs can be provided using a list of URL in `application.properties` file or any other method supported by SpringBoot configuration mechanism. For example, they can be stored in an [Apicurio Registry](https://www.apicur.io/registry/)
 
 ## How does it work?
 
-You work with Postman to test the API endpoints, sending a request and verify the response. Thanks to Postman [Test Scripts](https://learning.postman.com/docs/writing-scripts/test-scripts/) it is possible to add custom scripts to access the  `request`, `response` and `headers` programmatically and send them to the OpenAPI Request-Response Validator.
-Postman tests (with assertions) can be defined to confirm the JSON payloads are valid according to the API specification.
+![OpenAPI Validator](doc/demo.png)
 
-![OpenAPI Validator](doc/openapi-validator.png)
-
-The outcome of the validation (together with the list of errors — if any) is returned to Postman (displayed in the Postman console) and logged by the application.
-
+A validation error will result in a `HTTP/1.1 400 Bad Request` with a JSON array of error messages as response body.
 
 ## How to run
 
-Steps:
-* add the snippet below in the Collection Tests
-* provide the OpenAPI file
-* launch the `openapi-request-response-validation` tool ([Java app](#start-the-tool-java) or using [Docker](#start-the-tool-docker)) 
-* run the Postman requests against your service or application 
-
-### Collection Test snippet
-
-In the **Collection Tests** add the snippet below. It will run after every request in the collection.  
-
-What does it do? After executing the request the Test Script will send `request`, `response` and `headers` to the validator.
+Configure your OpenAPI specs locations in `application.properties` as a list of:
 
 ```
-openapiRequestResponseValidation = {
-    validate: function(pm) {
-    
-        // build path without baseUrl
-        var baseUrl = pm.collectionVariables.get("baseUrl");
-        baseUrl = baseUrl.replace('https://','');
-        baseUrl = baseUrl.replace(pm.request.url.getHost(),'');
-
-        var path = pm.request.url.getPath().replace(baseUrl,'');
-
-        console.log('Validation for ' + path);
-
-        const postRequest = {
-            url: 'http://localhost:8080/validate',
-            method: 'POST',
-            header: {'Content-Type': 'application/json'},
-            body: {
-            mode: 'raw',
-            raw: JSON.stringify({ 
-                method: pm.request.method, 
-                path: path,
-                headers: pm.request.headers,
-                requestAsJson: (pm.request.body != "") ? pm.request.body.raw : null,
-                responseAsJson: pm.response.text(),
-                statusCode: pm.response.code
-                })
-            }
-        };
-
-        pm.sendRequest(postRequest, (error, response) => {
-            if(error != undefined) {
-                pm.expect.fail('Unexpected error ' + error);
-            } else {
-                var data = response.json();
-
-                if(data.valid == false) {
-                    console.log(data.errors);
-                }
-
-                pm.test("OpenAPI validation", () => {
-                    pm.expect(data.valid, "Invalid request/response (check Console)").to.equal(true);
-                });
-
-            }
-        });  
-    }
-
-};
-
-openapiRequestResponseValidation.validate(pm);
+provider.schemasLocations.<OpenApiSchemaKey>=<URL>
+```
+Eg:
+```
+provider.schemasLocations.MyApiSpec=file://MyApiSpec.json
 ```
 
-### Provide the OpenAPI spec file
+Run the application with `mvn spring-boot:run` (listening on port 8080 by default)
 
-Copy/rename your OpenAPI specs to `openapi/openapi.yaml` or `openapi/openapi.json`
-
-### Start the tool (Java)
-
-Run the Java application 
-```shell
-java -jar target/openapi-request-response-validator.jar
+Then you can curl your service using the validation proxy:
+```
+curl -v -H "OpenApiSchemaKey: <OpenApiSchemaKey>" --proxy "http://localhost:8080" '<myservicehostendpoint>' | json_reformat json_reformat
 ```
 
-Run the Java application with custom port and spec file
-```shell
-java -jar target/openapi-request-response-validator.jar --server.port=8888 --INPUT_SPECS=/path/to/myopenapi.yaml
-```
+`OpenApiSchemaKey` header value need to match the configured ones in `application.properties` in order to select the proper OpenAPI spec.
 
-### Start the tool (Docker)
-
-You can run the tool on Docker
-
-```
-# run using default openapi/openapi.yaml or openapi/openapi.json
-docker run -v $(pwd):/openapi -it --rm --name openapi-request-response-validation \
- gcatanese/openapi-request-response-validation
-
-# run using custom location of the OpenAPI file
-docker run -v $(pwd):/openapi -e INPUT_SPECS=/tmp/openapi.yaml \
-  -it --rm --name openapi-request-response-validation \
-    gcatanese/openapi-request-response-validation
-```
-
-### Run Postman requests
-
-Run the Postman requests and check the Test tab
-
-![Postman Test Results](doc/postman-test-results.png)
-
-
+As of today validation happens only on the `request`.
 
 ---
-Using [Atlassian Swagger Validator](https://bitbucket.org/atlassian/swagger-request-validator/), [Postman](https://postman.com) 
-and [Docker](https://docker.com)
+Using [Atlassian Swagger Validator](https://bitbucket.org/atlassian/swagger-request-validator/), [Camel](https://camel.apache.org/) 
+and [SpringBoot](https://spring.io/projects/spring-boot/)
 
+Inspired by the excellent work by [Beppe Catanese](https://github.com/gcatanese/openapi-request-response-validation) and adapted as HTTP Proxy.

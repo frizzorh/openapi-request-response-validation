@@ -10,7 +10,7 @@
         <version>3.1.2</version>
     </parent>
 
-    <groupId>com.tweesky.cloudtools</groupId>
+    <groupId>org.acme.openapi.validationproxy</groupId>
     <artifactId>openapi-request-response-validator</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
@@ -87,7 +87,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot-version}</version>
                 <configuration>
-                    <mainClass>com.tweesky.cloudtools.OpenApiValidatorApplication</mainClass>
+                    <mainClass>org.acme.openapi.validationproxy.OpenApiValidatorApplication</mainClass>
                     <layout>ZIP</layout>
                 </configuration>
             </plugin>
